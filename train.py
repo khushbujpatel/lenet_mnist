@@ -8,6 +8,9 @@ from __future__ import print_function
 
 import argparse
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
@@ -76,23 +79,49 @@ def main():
     device = torch.device("cuda" if use_cuda else "cpu")
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
-    train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('data/', train=True, download=True,
+
+    train_dataset = datasets.ImageFolder('data/mnist/training/',
                        transform=transforms.Compose([
+                           transforms.Grayscale(1),
+                           transforms.RandomRotation(25),
+                           transforms.RandomResizedCrop(28),
+                           transforms.RandomHorizontalFlip(),
+                           transforms.Resize((28, 28)),
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
+                       ]))
+
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('data/', train=False, transform=transforms.Compose([
+        datasets.ImageFolder('data/mnist/testing/', transform=transforms.Compose([
+                           transforms.Grayscale(1),
+                           transforms.RandomRotation(25),
+                           transforms.RandomResizedCrop(28),
+                           transforms.RandomHorizontalFlip(),
+                           transforms.Resize((28, 28)),
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
+    custom_dataset = datasets.ImageFolder('data/custom_set/',
+                       transform=transforms.Compose([
+                           transforms.Grayscale(1),
+                           transforms.Resize((28, 28)),
+                           transforms.RandomRotation(25),
+                           transforms.RandomResizedCrop(28),
+                           transforms.RandomHorizontalFlip(),
+                           transforms.ToTensor(),
+                           transforms.Normalize((0.1307,), (0.3081,))
+                       ]))
+
+    train_loader = torch.utils.data.DataLoader(
+        torch.utils.data.ConcatDataset([train_dataset, custom_dataset]),
+        batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
     model = Net().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    # model = models.vgg16(pretrained=True)
+    # model = model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)

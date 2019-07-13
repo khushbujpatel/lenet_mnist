@@ -14,7 +14,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-from net import Net
+from net import LeNet
 
 
 def train(args, model, device, train_loader, optimizer, epoch):
@@ -77,50 +77,40 @@ def main():
     torch.manual_seed(args.seed)
 
     device = torch.device("cuda" if use_cuda else "cpu")
+    print("Device available: {}".format(device))
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
+    image_size = 32
 
-    train_dataset = datasets.ImageFolder('data/mnist/training/',
+    train_loader = torch.utils.data.DataLoader(
+        torch.utils.data.ConcatDataset([
+            datasets.ImageFolder('data/mnist/training/',
                        transform=transforms.Compose([
                            transforms.Grayscale(1),
-                           transforms.RandomRotation(25),
-                           transforms.RandomResizedCrop(28),
-                           transforms.RandomHorizontalFlip(),
-                           transforms.Resize((28, 28)),
+                           transforms.Resize((image_size, image_size)),
+                           transforms.ToTensor(),
+                           transforms.Normalize((0.1307,), (0.3081,))
+                       ])),
+            datasets.ImageFolder('data/custom_set/',
+                       transform=transforms.Compose([
+                           transforms.Grayscale(1),
+                           transforms.Resize((image_size, image_size)),
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ]))
+        ]),
+        batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
     test_loader = torch.utils.data.DataLoader(
         datasets.ImageFolder('data/mnist/testing/', transform=transforms.Compose([
                            transforms.Grayscale(1),
-                           transforms.RandomRotation(25),
-                           transforms.RandomResizedCrop(28),
-                           transforms.RandomHorizontalFlip(),
-                           transforms.Resize((28, 28)),
+                           transforms.Resize((image_size, image_size)),
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
-    custom_dataset = datasets.ImageFolder('data/custom_set/',
-                       transform=transforms.Compose([
-                           transforms.Grayscale(1),
-                           transforms.Resize((28, 28)),
-                           transforms.RandomRotation(25),
-                           transforms.RandomResizedCrop(28),
-                           transforms.RandomHorizontalFlip(),
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ]))
-
-    train_loader = torch.utils.data.DataLoader(
-        torch.utils.data.ConcatDataset([train_dataset, custom_dataset]),
-        batch_size=args.test_batch_size, shuffle=True, **kwargs)
-
-    model = Net().to(device)
-    # model = models.vgg16(pretrained=True)
-    # model = model.to(device)
+    model = LeNet().to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     for epoch in range(1, args.epochs + 1):
